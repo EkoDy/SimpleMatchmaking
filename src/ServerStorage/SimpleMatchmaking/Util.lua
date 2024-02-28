@@ -18,23 +18,27 @@ end
 
 function Util:TeleportPlayers(matchPlaceId: number, players: {Instance}, accessCode)
 	if RunService:IsStudio() then return true, "studio" end
+	local ATTEMPT_LIMIT = 5
 	
 	local debounce = 0
-	local success, result
+	local tries = 0
+
+	local success, result = false, nil
 	
 	local teleportOptions = Instance.new('TeleportOptions')
 	teleportOptions.ReservedServerAccessCode = accessCode
 	
-	for i = 1, 5 do
+	repeat
 		success, result = pcall(function()
 			return TeleportService:TeleportAsync(matchPlaceId, players, teleportOptions)
 		end)
 		
 		if not success then
+			tries += 1
 			debounce += 1
 			task.wait(debounce)
 		end
-	end
+	until success or tries == ATTEMPT_LIMIT
 	
 	return success, result
 end

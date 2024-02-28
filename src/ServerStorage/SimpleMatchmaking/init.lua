@@ -1,4 +1,4 @@
---v1.0.0
+--v0.2.0
 
 --- Roblox Services
 local MemoryStoreService = game:GetService('MemoryStoreService')
@@ -33,6 +33,7 @@ function SimpleMatchmaking:NewOptions()
 	NewOptions.NumberOfTeams = 1
 	NewOptions.MaxPlayersPerTeam = 1
 	NewOptions.MatchExpirationTime = 600
+	NewOptions.UseCustomTeleporting = true
 
 	return NewOptions
 end

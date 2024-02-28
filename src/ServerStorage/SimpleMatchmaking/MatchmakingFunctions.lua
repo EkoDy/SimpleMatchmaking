@@ -19,14 +19,16 @@ MatchmakingFunctions.__index = MatchmakingFunctions
 function MatchmakingFunctions:AddAsync(matchCredentials, players:{Instance}?)
 	local queue = self.Queue
 	local options = self.Options
-	local expirationTime = options.MatchExpirationTime
 	
+	local expirationTime = options.MatchExpirationTime
 	local numberOfTeams = options.NumberOfTeams
 	local maxPlayersPerTeam = options.MaxPlayersPerTeam
 	local matchmakingEndedEvent = options.matchmakingEndedEvent
 	
+	
 	local newServer = Util:CompileDefaultServer(self.Options, matchCredentials)
 	local playersInMatch = 0
+	
 	
 	local success, serverData
 	if players and #players > 0 then
@@ -73,28 +75,31 @@ function MatchmakingFunctions:UpdateAsync(matchId, players:{Instance})
 	local expirationTime = options.MatchExpirationTime
 	local returnedData
 	
+	--- Update function
+	local function updateFunction(oldData, oldPlayerCount)
+		if not oldData or (oldPlayerCount + #players) > (maxPlayersPerTeam * numberOfTeams) then
+			return nil
+		end
+
+		local data = HttpService:JSONDecode(oldData)
+
+		local success, newData = Util:AddPlayersToMatch(data, players, options)
+
+		if not success then
+			return nil
+		end
+
+		returnedData = newData
+		local encodedData = HttpService:JSONEncode(newData)
+		local newPlayerCount = oldPlayerCount + #players
+
+		return encodedData, newPlayerCount
+	end
+	
+	
 	--- Add players to the match
 	local uSuccess, uData, playerCount = pcall(function()
-		return queue:UpdateAsync(matchId, function(oldData, oldPlayerCount)
-
-			if not oldData or (oldPlayerCount + #players) > (maxPlayersPerTeam * numberOfTeams) then
-				return nil, oldPlayerCount
-			end
-
-			local data = HttpService:JSONDecode(oldData)
-
-			local success, newData = Util:AddPlayersToMatch(data, players, options)
-
-			if not success then
-				return nil
-			end
-
-			returnedData = newData
-			local encodedData = HttpService:JSONEncode(newData)
-			local newPlayerCount = oldPlayerCount + #players
-
-			return encodedData, newPlayerCount
-		end, expirationTime)
+		return queue:UpdateAsync(matchId, updateFunction, expirationTime)
 	end)
 		
 	return uSuccess, returnedData, playerCount
@@ -121,19 +126,34 @@ function MatchmakingFunctions:RemoveAsync(matchId: string)
 end
 
 
-function MatchmakingFunctions:GetRangeAsync()
+function MatchmakingFunctions:GetRangeAsync(players: {Instance}?)
 	local queue = self.Queue
-	local success, result
-	local debounce = 0
+	local options = self.Options
 
+	local debounce = 0
+	local upperBound = nil
+	local success, result
+	
+	local orders = {Enum.SortDirection.Descending, Enum.SortDirection.Ascending}
+	local sortDirection = orders[math.random(1, 2)]
+	
+	
+	if players and #players > 0 then
+		local maxPlayerCount = options.NumberOfTeams * options.MaxPlayersPerTeam
+		upperBound = maxPlayerCount - #players
+	end
+	
+	
 	for i = 1, 5 do
 		task.wait(debounce)
 		
 		success, result = pcall(function()
-			return queue:GetRangeAsync(Enum.SortDirection.Descending, 10)
+			return queue:GetRangeAsync(sortDirection, 10, nil, upperBound)
 		end)
 		
-		if success and result then break end
+		if success and result then
+			break
+		end
 		debounce += 1
 	end
 	
@@ -144,8 +164,13 @@ end
 --- Custom Functions ---
 function MatchmakingFunctions:CreateMatchAsync(players: {Instance}?): {}
 	local matchPlaceId = self.Options.MatchPlaceId
+	local accessCode, matchId
 	
-	local accessCode, matchId = TeleportService:ReserveServer(matchPlaceId)
+	if not RunService:IsStudio() then
+		accessCode, matchId = TeleportService:ReserveServer(matchPlaceId)
+	else
+		accessCode, matchId = "studio", HttpService:GenerateGUID(false)
+	end
 	local credentials = {matchId = matchId, accessCode = accessCode}
 	
 	local aSuccess, aResult = self:AddAsync(credentials, players)
@@ -156,11 +181,10 @@ end
 
 function MatchmakingFunctions:QueuePlayers(players:{Instance})
 	if not players or #players == 0 then error("No players to be queued") end
-	
 	local options = self.Options
 	
-	local gSuccess, gResult = self:GetRangeAsync()
 	
+	local gSuccess, gResult = self:GetRangeAsync()
 	
 	if gSuccess and gResult and #gResult > 0 then
 		for i, v in gResult do
@@ -170,18 +194,24 @@ function MatchmakingFunctions:QueuePlayers(players:{Instance})
 				continue
 			end
 			
-			Util:TeleportPlayers(options.MatchPlaceId, players, uData.Credentials.accessCode)
+			if options.UseCustomTeleporting then
+				Util:TeleportPlayers(options.MatchPlaceId, players, uData.Credentials.accessCode)
+			end
 			return uSuccess, uData.Credentials
 		end
 	end
 	
+	
 	local credentials = self:CreateMatchAsync(players)
-
+	
 	if not credentials or not credentials.accessCode then
 		return false, nil
 	end
 	
-	Util:TeleportPlayers(options.MatchPlaceId, players, credentials.accessCode)
+	
+	if options.UseCustomTeleporting then
+		Util:TeleportPlayers(options.MatchPlaceId, players, credentials.accessCode)
+	end
 	return true, credentials
 end
 
