@@ -1,4 +1,5 @@
 site_name: SimpleMatchmaking Documentation
+site_url: https://ekody.github.io/SimpleMatchmaking/
 nav:
   - Introduction: 'index.md'
   - Objects:
