@@ -1,18 +1,20 @@
---v0.2.0
+--v1.0.0-beta
 
 --- Roblox Services
 local MemoryStoreService = game:GetService('MemoryStoreService')
 local DataStoreService = game:GetService('DataStoreService')
 
---- Custom Modules
+
+--- Custom Modules ---
 local ModuleFunctions = require(script.MatchmakingFunctions)
 local Util = require(script.Util)
 
 
+--- Module ---
 local SimpleMatchmaking = {}
 SimpleMatchmaking.__index = SimpleMatchmaking
 
--- main
+
 function SimpleMatchmaking:GetQueue(name:string, options:{matchPlaceId: number, numberOfTeams: number, maxPlayersPerTeam: number, matchExpirationTime: number})
 	if not options then error("Missing options.") end
 	
@@ -26,6 +28,7 @@ function SimpleMatchmaking:GetQueue(name:string, options:{matchPlaceId: number, 
 	return self
 end
 
+
 function SimpleMatchmaking:NewOptions()
 	local NewOptions = {}
 
@@ -37,5 +40,6 @@ function SimpleMatchmaking:NewOptions()
 
 	return NewOptions
 end
+
 
 return SimpleMatchmaking

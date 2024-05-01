@@ -1,22 +1,17 @@
+local DataStoreService = game:GetService("DataStoreService")
 local TeleportService = game:GetService('TeleportService')
 local RunService = game:GetService('RunService')
 
+
 local Util = {}
+--- module types ---
+export type Server = {
+	Teams: {{}},
+	Credentials: {string}
+}
 
-function Util:CompileDefaultServer(matchmakingOptions, matchCredentials)
-	local newServer = {}
-	newServer.Teams = {}
-	newServer.Credentials = matchCredentials
-
-	for i = 1, matchmakingOptions.NumberOfTeams do
-		newServer.Teams["t"..tostring(i)] = {}
-	end
-
-	return newServer
-end
-
-
-function Util:TeleportPlayers(matchPlaceId: number, players: {Instance}, accessCode)
+--- Player util ---
+function Util:TeleportPlayers(matchPlaceId: number, players: {Player}, accessCode)
 	if RunService:IsStudio() then return true, "studio" end
 	local ATTEMPT_LIMIT = 5
 	
@@ -44,25 +39,39 @@ function Util:TeleportPlayers(matchPlaceId: number, players: {Instance}, accessC
 end
 
 
-function Util:AddPlayersToMatch(serverData, players: {Instance}, options)
+--- [DEPRECATED] Server util ---
+function Util:CompileDefaultServer(matchmakingOptions, matchCredentials)
+	local newServer = {}
+	newServer.Teams = {}
+	newServer.Credentials = matchCredentials
+
+	for i = 1, matchmakingOptions.NumberOfTeams do
+		newServer.Teams["t"..tostring(i)] = {}
+	end
+
+	return newServer
+end
+
+
+function Util:AddPlayersToMatch(serverData, players: {Player}, options)
 	if not players or #players == 0 then error("No players given.") end	
-	
+
 	local newServerData = serverData
 	local success = false
-	
+
 	for i, v in newServerData.Teams do
 		if #v + #players > options.MaxPlayersPerTeam then
 			continue
 		end
-		
+
 		for x, y in players do
 			table.insert(newServerData.Teams[i], y.UserId)
 		end
-		
+
 		success = true
 		break
 	end
-	
+
 	return success, newServerData
 end
 
@@ -70,19 +79,19 @@ end
 function Util:IsPlayerInMatch(player: Player, serverData)
 	local isInMatch = false
 	local teamChecked = nil
-	
+
 	for i, v in serverData.Teams do
 		for x, y in v do
 			if y ~= player.UserId then
 				continue
 			end
-			
+
 			isInMatch = true
 			teamChecked = i
 			break
 		end
 	end
-	
+
 	return isInMatch, teamChecked
 end
 
